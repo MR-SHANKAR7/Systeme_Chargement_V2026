@@ -1,70 +1,65 @@
-"""Point d'entrée de Systeme_Chargement."""
+    def show_home(self):
+        user = self.current_user
+        card = self.make_card(
+            "Accueil",
+            f"Bienvenue, {user['username']} — Atelier Coulage Vitreous",
+        )
 
-from __future__ import annotations
+        role_label = "Administrateur" if user["role"] == "admin" else "Opérateur"
+        ttk.Label(card, text=f"Rôle : {role_label}").pack(pady=(0, 18))
 
-import tkinter as tk
-from tkinter import ttk
+        # زر جديد لإدخال الصب (متاح للجميع)
+        ttk.Button(
+            card,
+            text="Saisie du Coulage",
+            command=self.show_coulage_entry,
+        ).pack(fill="x", pady=4)
 
-import db
-from config import COLOR_BACKGROUND, COLOR_BLUE, COLOR_GOLD, COLOR_MUTED, COLOR_NAVY, COLOR_TEXT, COLOR_WHITE
-from session import session
-from ui.accueil import Accueil
-from ui.login import FenetreConnexion, InitialisationAdmin
+        if user["role"] == "admin":
+            ttk.Button(
+                card,
+                text="Menu administrateur",
+                command=self.show_admin_menu,
+            ).pack(fill="x", pady=4)
 
+        ttk.Button(
+            card,
+            text="Changer le mot de passe",
+            command=self.show_change_password,
+        ).pack(fill="x", pady=4)
+        ttk.Button(card, text="Déconnexion", command=self.logout).pack(
+            fill="x", pady=4
+        )
 
-class Application(tk.Tk):
-    def __init__(self) -> None:
-        super().__init__()
-        self.title("Systeme de Chargement · V2026")
-        self.minsize(1060, 680)
-        self.configure(bg=COLOR_BACKGROUND)
-        self._configurer_styles()
-        db.initialiser_base()
-        self.ecran = None
-        self.afficher_connexion()
-        if not db.administrateur_initial_existe():
-            self.after(150, lambda: InitialisationAdmin(self))
+    def show_coulage_entry(self):
+        card = self.make_card("Saisie du Coulage", "Enregistrez une nouvelle opération de coulage.")
+        
+        ttk.Label(card, text="Numéro du Wagon").pack(anchor="w")
+        wagon_entry = ttk.Entry(card, width=38)
+        wagon_entry.pack(fill="x", pady=(4, 12))
+        
+        ttk.Label(card, text="Date de Coulage").pack(anchor="w")
+        date_entry = ttk.Entry(card, width=38)
+        date_entry.insert(0, "YYYY-MM-DD") # تلميح للتاريخ
+        date_entry.pack(fill="x", pady=(4, 12))
+        
+        def submit():
+            w_id = wagon_entry.get().strip()
+            d_coul = date_entry.get().strip()
+            if not w_id or not d_coul:
+                messagebox.showerror("Erreur", "Veuillez remplir tous les champs.")
+                return
+            
+            try:
+                # تحويل رقم العربة إلى رقم صحيح
+                wagon_id = int(w_id)
+                database.register_coulage(wagon_id, d_coul, self.current_user['id'])
+                messagebox.showinfo("Succès", f"Wagon {wagon_id} enregistré avec succès.")
+                self.show_home()
+            except ValueError:
+                messagebox.showerror("Erreur", "Le numéro du wagon doit être un nombre.")
+            except Exception as e:
+                messagebox.showerror("Erreur", str(e))
 
-    def _configurer_styles(self) -> None:
-        style = ttk.Style(self)
-        style.theme_use("clam")
-        style.configure("TFrame", background=COLOR_BACKGROUND)
-        style.configure("Card.TFrame", background=COLOR_WHITE)
-        style.configure("TLabel", background=COLOR_BACKGROUND, foreground=COLOR_TEXT, font=("Segoe UI", 10))
-        style.configure("Title.TLabel", background=COLOR_WHITE, foreground=COLOR_NAVY, font=("Segoe UI", 22, "bold"))
-        style.configure("Subtitle.TLabel", background=COLOR_WHITE, foreground=COLOR_MUTED, font=("Segoe UI", 11))
-        style.configure("Brand.TLabel", background=COLOR_WHITE, foreground=COLOR_NAVY, font=("Segoe UI", 24, "bold"))
-        style.configure("Version.TLabel", background=COLOR_WHITE, foreground=COLOR_MUTED, font=("Segoe UI", 9))
-        style.configure("ReadOnly.TLabel", background=COLOR_WHITE, foreground=COLOR_NAVY, font=("Segoe UI", 11, "bold"))
-        style.configure("CounterName.TLabel", background=COLOR_WHITE, foreground=COLOR_MUTED, font=("Segoe UI", 9, "bold"))
-        style.configure("CounterValue.TLabel", background=COLOR_WHITE, foreground=COLOR_NAVY, font=("Segoe UI", 24, "bold"))
-        style.configure("ActionTitle.TLabel", background=COLOR_WHITE, foreground=COLOR_NAVY, font=("Segoe UI", 14, "bold"))
-        style.configure("ActionHint.TLabel", background=COLOR_WHITE, foreground=COLOR_MUTED, font=("Segoe UI", 9))
-        style.configure("TButton", font=("Segoe UI", 11), padding=(12, 8))
-        style.configure("Primary.TButton", background=COLOR_BLUE, foreground=COLOR_WHITE, borderwidth=0)
-        style.map("Primary.TButton", background=[("active", "#2577AB")])
-        style.configure("Gold.TButton", background=COLOR_GOLD, foreground=COLOR_NAVY, borderwidth=0)
-        style.map("Gold.TButton", background=[("active", "#B8943E")])
-        style.configure("TEntry", fieldbackground=COLOR_WHITE, padding=7)
-
-    def remplacer_ecran(self, ecran) -> None:
-        if self.ecran is not None:
-            self.ecran.destroy()
-        self.ecran = ecran
-        self.ecran.pack(fill="both", expand=True)
-
-    def afficher_connexion(self) -> None:
-        self.remplacer_ecran(FenetreConnexion(self, self.ouvrir_accueil))
-
-    def ouvrir_accueil(self, utilisateur) -> None:
-        session.ouvrir(utilisateur)
-        self.state("zoomed")
-        self.remplacer_ecran(Accueil(self, self.deconnecter))
-
-    def deconnecter(self) -> None:
-        session.fermer()
-        self.destroy()
-
-
-if __name__ == "__main__":
-    Application().mainloop()
+        ttk.Button(card, text="Enregistrer", command=submit).pack(fill="x", pady=(4, 0))
+        ttk.Button(card, text="Retour", command=self.show_home).pack(fill="x", pady=4)
